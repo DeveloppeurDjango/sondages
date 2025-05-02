@@ -2,6 +2,7 @@
 from django.urls import path
 from . import views
 from django.contrib.auth.decorators import login_required
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
 app_name = 'sondage'  # Namespace "sondage"
 
@@ -16,3 +17,5 @@ urlpatterns = [
     path('admin-stats/word/', views.admin_stats_word, name='admin_stats_word'),
     path('admin-stats/pdf/', views.admin_stats_pdf, name='admin_stats_pdf'),
 ]
+
+urlpatterns += staticfiles_urlpatterns()
