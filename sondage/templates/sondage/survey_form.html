@@ -6,7 +6,7 @@
 <div class="container">
     <header class="text-center my-5" data-aos="fade-down" data-aos-duration="1000">
         <h1>Questionnaire COFEDA</h1>
-        <p class="lead text-secondary">Merci de prendre le temps de répondre à ce questionnaire</p>
+        <p class="lead text-secondary">Merci de compléter l’ensemble des questionnaires avant de procéder à la soumission/p>
     </header>
 
     {% if messages %}
@@ -86,11 +86,6 @@
             <button type="submit" class="btn btn-primary" id="submit-button">
                 Soumettre le questionnaire
             </button>
-            {% if user.is_staff %}
-                <a href="{% url 'sondage:generate_report' %}" class="btn btn-secondary">
-                    Générer le rapport
-                </a>
-            {% endif %}
         </div>
     </form>
 </div>
