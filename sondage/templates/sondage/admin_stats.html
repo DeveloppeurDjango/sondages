@@ -1,0 +1,246 @@
+{% extends 'sondage/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container mt-5">
+    <header class="text-center mb-5">
+        <h1>Statistiques Administrateur - COFEDA</h1>
+        <p class="lead text-secondary">Synthèse complète des réponses au questionnaire</p>
+    </header>
+
+    <!-- Boutons de téléchargement -->
+    <div class="mb-4">
+        <a href="{% url 'sondage:survey_form' %}" class="btn btn-primary">Retour au questionnaire</a>
+        <a href="{% url 'sondage:admin_stats_word' %}" class="btn btn-success">Télécharger en Word</a>
+        <a href="{% url 'sondage:admin_stats_pdf' %}" class="btn btn-danger">Télécharger en PDF</a>
+    </div>
+
+    <!-- Statistiques détaillées -->
+    {% for section in sections %}
+        {% if section.name != "Informations Générales" %}
+            <div class="form-section mb-5">
+                <h2 class="mb-4">{{ section.name }}</h2>
+                {% for question in section.questions %}
+                    {% if question.question.number not in 'Q00A,Q00B,Q00C' %}
+                        <div class="question-container mb-4">
+                            <h3 class="h5 mb-3">
+                                <span class="question-number">{{ question.question.number }}</span>
+                                {{ question.question.text }}
+                            </h3>
+
+                            {% if question.type == 'text' %}
+                                <div class="text-responses">
+                                    {% for response in question.responses %}
+                                        <div class="response-item">
+                                            {{ response }}
+                                        </div>
+                                    {% empty %}
+                                        <p class="text-muted">Aucune réponse pour cette question.</p>
+                                    {% endfor %}
+                                </div>
+                            
+                            {% elif question.type == 'likert' %}
+                                {% for option_data in question.options_data %}
+                                    <div class="likert-option mb-4">
+                                        <h4 class="h6 mb-3">{{ option_data.option }}</h4>
+                                        <div class="table-responsive mb-4">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Valeur</th>
+                                                        <th>0</th>
+                                                        <th>1</th>
+                                                        <th>2</th>
+                                                        <th>3</th>
+                                                        <th>4</th>
+                                                        <th>5</th>
+                                                        <th>Moyenne</th>
+                                                        <th>Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Nombre</td>
+                                                        {% for i in "012345" %}
+                                                            <td>{{ option_data.scale_counts|dict_get:i }}</td>
+                                                        {% endfor %}
+                                                        <td>{{ option_data.average }}</td>
+                                                        <td>{{ option_data.total_responses }}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="chart-container">
+                                            <canvas id="likertChart-{{ question.question.id }}-{{ forloop.counter }}" class="mb-3"></canvas>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="table-responsive mb-4">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Option</th>
+                                                <th>Nombre de réponses</th>
+                                                <th>Pourcentage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for response in question.responses %}
+                                                <tr>
+                                                    <td>{{ response.option }}</td>
+                                                    <td>{{ response.count }}</td>
+                                                    <td>{{ response.percentage }}%</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="chart-container">
+                                    <canvas id="chart-{{ question.question.id }}" class="mb-3"></canvas>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuration des couleurs
+    const colors = {
+        primary: '#6366f1',
+        secondary: '#8b5cf6',
+        accent: '#a78bfa',
+        background: 'rgba(255, 255, 255, 0.1)',
+        border: 'rgba(255, 255, 255, 0.2)'
+    };
+
+    // Création des graphiques pour les questions à choix multiples
+    {% for section in sections %}
+        {% for question in section.questions %}
+            {% if question.type == 'multiple_choice' and question.question.number not in 'Q00A,Q00B,Q00C' %}
+                const ctx{{ question.question.id }} = document.getElementById('chart-{{ question.question.id }}').getContext('2d');
+                new Chart(ctx{{ question.question.id }}, {
+                    type: 'bar',
+                    data: {
+                        labels: [
+                            {% for response in question.responses %}
+                                '{{ response.option }}'{% if not forloop.last %},{% endif %}
+                            {% endfor %}
+                        ],
+                        datasets: [{
+                            label: 'Nombre de réponses',
+                            data: [
+                                {% for response in question.responses %}
+                                    {{ response.count }}{% if not forloop.last %},{% endif %}
+                                {% endfor %}
+                            ],
+                            backgroundColor: colors.primary,
+                            borderColor: colors.border,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#fff'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: colors.border
+                                },
+                                ticks: {
+                                    color: '#fff'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    color: colors.border
+                                },
+                                ticks: {
+                                    color: '#fff'
+                                }
+                            }
+                        }
+                    }
+                });
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    // Création des graphiques pour les questions Likert
+    {% for section in sections %}
+        {% for question in section.questions %}
+            {% if question.type == 'likert' and question.question.number not in 'Q00A,Q00B,Q00C' %}
+                {% for option_data in question.options_data %}
+                    const ctx{{ question.question.id }}_{{ forloop.counter }} = document.getElementById('likertChart-{{ question.question.id }}-{{ forloop.counter }}').getContext('2d');
+                    new Chart(ctx{{ question.question.id }}_{{ forloop.counter }}, {
+                        type: 'bar',
+                        data: {
+                            labels: ['0', '1', '2', '3', '4', '5'],
+                            datasets: [{
+                                label: 'Distribution des réponses',
+                                data: [
+                                    {{ option_data.scale_counts.0 }},
+                                    {{ option_data.scale_counts.1 }},
+                                    {{ option_data.scale_counts.2 }},
+                                    {{ option_data.scale_counts.3 }},
+                                    {{ option_data.scale_counts.4 }},
+                                    {{ option_data.scale_counts.5 }}
+                                ],
+                                backgroundColor: colors.secondary,
+                                borderColor: colors.border,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#fff'
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: colors.border
+                                    },
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        color: colors.border
+                                    },
+                                    ticks: {
+                                        color: '#fff'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+});
+</script>
+{% endblock %}

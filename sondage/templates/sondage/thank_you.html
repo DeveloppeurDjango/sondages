@@ -1,0 +1,27 @@
+{% extends 'sondage/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    <h1 class="display-4 mb-4">Merci pour votre participation !</h1>
+                    <p class="lead text-muted mb-4">
+                        Votre contribution est précieuse pour nous. Nous vous remercions d'avoir pris le temps de répondre à notre questionnaire.
+                    </p>
+                    <div class="mt-4">
+                        <a href="{% url 'sondage:survey_form' %}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>Retour au questionnaire
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

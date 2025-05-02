@@ -1,0 +1,201 @@
+{% extends 'sondage/base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container">
+    <header class="text-center my-5" data-aos="fade-down" data-aos-duration="1000">
+        <h1>Questionnaire COFEDA</h1>
+        <p class="lead text-secondary">Merci de prendre le temps de répondre à ce questionnaire</p>
+    </header>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} fade show" role="alert" data-aos="fade-up" data-aos-duration="800">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" action="{% url 'sondage:submit_survey' %}" id="survey-form">
+        {% csrf_token %}
+        {% for section in sections %}
+            <div class="form-section" data-aos="fade-up" data-aos-duration="800" data-aos-delay="{{ forloop.counter|multiply:100 }}">
+                <h2>{{ section.name }}</h2>
+                {% for question in section.questions.all %}
+                    <div class="question-container" id="question_{{ question.id }}">
+                        <label class="form-label">
+                            <span class="question-number">{{ question.number }}</span>
+                            {{ question.text }}
+                        </label>
+                        
+                        {% if question.is_text %}
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="question_{{ question.id }}" 
+                                   placeholder="Votre réponse..."
+                                   required
+                                   data-aos="fade-right"
+                                   data-aos-duration="600">
+                        {% elif question.is_likert %}
+                            {% for option in question.options.all %}
+                                <div class="mb-4" data-aos="fade-up" data-aos-duration="600">
+                                    <p class="mb-2">{{ option.text }}</p>
+                                    <div class="likert-scale">
+                                        {% for value in "012345" %}
+                                            <div class="likert-option">
+                                                <input type="radio" 
+                                                       class="btn-check" 
+                                                       name="question_{{ question.id }}_{{ option.id }}" 
+                                                       value="{{ value }}" 
+                                                       id="option_{{ option.id }}_{{ value }}"
+                                                       required>
+                                                <label class="btn btn-outline-primary w-100" 
+                                                       for="option_{{ option.id }}_{{ value }}">
+                                                    {{ value }}
+                                                </label>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="options-container" data-aos="fade-up" data-aos-duration="600">
+                                {% for option in question.options.all %}
+                                    <div class="form-check">
+                                        <input type="radio" 
+                                               class="form-check-input" 
+                                               name="question_{{ question.id }}" 
+                                               value="{{ option.id }}" 
+                                               id="option_{{ option.id }}"
+                                               required>
+                                        <label class="form-check-label" 
+                                               for="option_{{ option.id }}">
+                                            {{ option.text }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-5" data-aos="fade-up" data-aos-duration="800">
+            <button type="submit" class="btn btn-primary" id="submit-button">
+                Soumettre le questionnaire
+            </button>
+            {% if user.is_staff %}
+                <a href="{% url 'sondage:generate_report' %}" class="btn btn-secondary">
+                    Générer le rapport
+                </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<script>
+    // Initialisation de AOS
+    AOS.init({
+        once: true,
+        offset: 100
+    });
+
+    // Animation des sections au défilement
+    document.addEventListener('DOMContentLoaded', function() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1
+        });
+
+        document.querySelectorAll('.form-section').forEach(section => {
+            observer.observe(section);
+        });
+    });
+
+    // Validation du formulaire avec animation
+    document.getElementById('survey-form').addEventListener('submit', function(e) {
+        e.preventDefault(); // Empêcher la soumission par défaut
+        
+        const requiredInputs = this.querySelectorAll('input[required]');
+        let allFilled = true;
+        let firstInvalidInput = null;
+        let errorMessage = '';
+
+        // Vérifier les champs texte
+        this.querySelectorAll('input[type="text"]').forEach(input => {
+            if (!input.value.trim()) {
+                allFilled = false;
+                if (!firstInvalidInput) {
+                    firstInvalidInput = input;
+                    errorMessage = 'Veuillez remplir tous les champs texte.';
+                }
+            }
+        });
+
+        // Vérifier les questions radio simples
+        this.querySelectorAll('.options-container').forEach(container => {
+            const radioGroup = container.querySelectorAll('input[type="radio"]');
+            const isChecked = Array.from(radioGroup).some(radio => radio.checked);
+            if (!isChecked) {
+                allFilled = false;
+                if (!firstInvalidInput) {
+                    firstInvalidInput = container;
+                    errorMessage = 'Veuillez répondre à toutes les questions à choix unique.';
+                }
+            }
+        });
+
+        // Vérifier les échelles Likert
+        this.querySelectorAll('.likert-scale').forEach(scale => {
+            const radioGroup = scale.querySelectorAll('input[type="radio"]');
+            const isChecked = Array.from(radioGroup).some(radio => radio.checked);
+            if (!isChecked) {
+                allFilled = false;
+                if (!firstInvalidInput) {
+                    firstInvalidInput = scale.closest('.mb-4');
+                    errorMessage = 'Veuillez répondre à toutes les questions de l\'échelle Likert.';
+                }
+            }
+        });
+
+        if (!allFilled) {
+            firstInvalidInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstInvalidInput.classList.add('invalid');
+            setTimeout(() => {
+                firstInvalidInput.classList.remove('invalid');
+            }, 1000);
+
+            // Afficher un message d'erreur
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger mt-3';
+            errorDiv.textContent = errorMessage;
+            firstInvalidInput.appendChild(errorDiv);
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 3000);
+        } else {
+            // Si tout est valide, soumettre le formulaire
+            this.submit();
+        }
+    });
+
+    // Animation des boutons radio
+    document.querySelectorAll('.btn-check').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const label = this.nextElementSibling;
+            label.classList.add('checked');
+            setTimeout(() => {
+                label.classList.remove('checked');
+            }, 300);
+        });
+    });
+</script>
+{% endblock %}
