@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG')
 
-ALLOWED_HOSTS = ['https://sondages-cq23.onrender.com']
+ALLOWED_HOSTS = ['sondages-cq23.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
